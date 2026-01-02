@@ -99,7 +99,7 @@ header h1 {
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 1000px;
+    width: 600px;
     z-index: 5;
 }
 
@@ -389,7 +389,7 @@ header h1 {
 /* Responsiv design */
 @media (max-width: 1200px) {
     .player-north, .player-south {
-        width: 500px;
+        width: 550px;
     }
     
     .center-area {
