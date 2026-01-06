@@ -103,12 +103,55 @@ header h1 {
     z-index: 5;
 }
 
+/* När Nord är spelförare - flytta spelarna */
+.game-board.north-declarer .player-north {
+    top: auto;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    z-index: 5;
+}
+
+.game-board.north-declarer .player-south {
+    bottom: auto;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    z-index: 1;
+}
+
+.game-board.north-declarer .player-east {
+    right: auto;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 200px;
+}
+
+.game-board.north-declarer .player-west {
+    left: auto;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 200px;
+}
+
 .player-name {
     font-weight: bold;
     font-size: 1.1em;
     margin-bottom: 10px;
     text-align: center;
     color: #667eea;
+}
+
+.player-hp {
+    font-weight: bold;
+    font-size: 0.95em;
+    margin-bottom: 8px;
+    text-align: center;
+    color: #4caf50;
 }
 
 .player-hand {

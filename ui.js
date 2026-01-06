@@ -48,6 +48,44 @@ class BridgeUI {
                 handEl.appendChild(cardEl);
             });
         }
+        
+        // Uppdatera HP-poäng för Syd
+        if (player === 'S') {
+            this.updateHP(player, hand);
+        }
+    }
+    
+    // Uppdatera HP-poäng för en spelare
+    updateHP(player, hand) {
+        let hpEl;
+        let otherHpEl;
+        
+        if (player === 'S') {
+            hpEl = document.getElementById('south-hp');
+            otherHpEl = document.getElementById('north-hp');
+        } else if (player === 'N') {
+            hpEl = document.getElementById('north-hp');
+            otherHpEl = document.getElementById('south-hp');
+        } else {
+            return; // Bara visa för Syd eller Nord
+        }
+        
+        if (!hpEl) return;
+        
+        // Visa HP-elementet för aktuell spelare, dölj för den andra
+        if (hpEl) {
+            hpEl.style.display = 'block';
+        }
+        if (otherHpEl) {
+            otherHpEl.style.display = 'none';
+        }
+        
+        if (hand && hand.length > 0) {
+            const hp = NordicStandardBidding.countHighCardPoints(hand);
+            hpEl.textContent = `HP: ${hp}`;
+        } else {
+            hpEl.textContent = 'HP: -';
+        }
     }
 
     // Markera spelbara kort
@@ -136,7 +174,7 @@ class BridgeUI {
     }
 
     // Uppdatera stickområdet
-    updateTrick(currentTrick, players, gamePhase) {
+    updateTrick(currentTrick, players, gamePhase, declarer = null) {
         const trickEl = document.getElementById('trick-area');
         if (!trickEl) return;
         
@@ -151,13 +189,27 @@ class BridgeUI {
             return;
         }
         
-        // Placera korten i rätt position baserat på spelare (grid: N överst vänster, E överst höger, W nederst vänster, S nederst höger)
-        const positions = { 
-            'N': { gridColumn: 1, gridRow: 1, label: 'Nord' },
-            'E': { gridColumn: 2, gridRow: 1, label: 'Öst' },
-            'W': { gridColumn: 1, gridRow: 2, label: 'Väst' },
-            'S': { gridColumn: 2, gridRow: 2, label: 'Syd' }
-        };
+        // Placera korten i rätt position baserat på spelare
+        // Standard: N överst vänster, E överst höger, W nederst vänster, S nederst höger
+        // När Nord är spelförare: S överst vänster, W överst höger, E nederst vänster, N nederst höger
+        let positions;
+        if (declarer === 'N') {
+            // När Nord är spelförare: Syd överst vänster, Väst överst höger, Öst nederst vänster, Nord nederst höger
+            positions = { 
+                'S': { gridColumn: 1, gridRow: 1, label: 'Syd' },
+                'W': { gridColumn: 2, gridRow: 1, label: 'Väst' },
+                'E': { gridColumn: 1, gridRow: 2, label: 'Öst' },
+                'N': { gridColumn: 2, gridRow: 2, label: 'Nord' }
+            };
+        } else {
+            // Standard positioner
+            positions = { 
+                'N': { gridColumn: 1, gridRow: 1, label: 'Nord' },
+                'E': { gridColumn: 2, gridRow: 1, label: 'Öst' },
+                'W': { gridColumn: 1, gridRow: 2, label: 'Väst' },
+                'S': { gridColumn: 2, gridRow: 2, label: 'Syd' }
+            };
+        }
         
         // Hitta första kortet (lead)
         const leadPlayer = currentTrick.length > 0 ? currentTrick[0].player : null;
@@ -305,7 +357,10 @@ class BridgeUI {
 
     // Uppdatera hela UI
     updateAll(gameState) {
-        const { players, biddingHistory, contract, trumpSuit, currentTrick, tricks, gamePhase } = gameState;
+        const { players, biddingHistory, contract, trumpSuit, currentTrick, tricks, gamePhase, declarer } = gameState;
+        
+        // Uppdatera spelarpositioner baserat på vem som är spelförare
+        this.updatePlayerPositions(declarer);
         
         // Uppdatera spelarnamn
         Object.keys(players).forEach(playerId => {
@@ -321,18 +376,48 @@ class BridgeUI {
             this.updateHand(playerId, player.cards, player.isRobot, player.isDummy || false);
         });
         
+        // Uppdatera HP-poäng för spelaren (Syd eller Nord om de är spelförare)
+        if (declarer === 'N' && players['N'] && players['N'].cards) {
+            this.updateHP('N', players['N'].cards);
+        } else if (declarer === 'S' && players['S'] && players['S'].cards) {
+            this.updateHP('S', players['S'].cards);
+        } else if (!declarer && players['S'] && players['S'].cards) {
+            // Under budgivning, visa HP för Syd
+            this.updateHP('S', players['S'].cards);
+        }
+        
         // Uppdatera budgivning
         this.updateBiddingHistory(biddingHistory, players);
         this.updateContract(contract, trumpSuit);
         
         // Uppdatera stick
-        this.updateTrick(currentTrick, players, gamePhase);
+        this.updateTrick(currentTrick, players, gamePhase, declarer);
         
         // Uppdatera poäng
         this.updateScore(tricks);
         
         // Uppdatera fas
         this.updatePhase(gamePhase);
+    }
+    
+    // Uppdatera spelarpositioner baserat på vem som är spelförare
+    updatePlayerPositions(declarer) {
+        const gameBoard = document.querySelector('.game-board');
+        if (!gameBoard) return;
+        
+        // Ta bort alla position-klasser
+        gameBoard.classList.remove('north-declarer', 'south-declarer', 'east-declarer', 'west-declarer');
+        
+        // Lägg till rätt klass baserat på spelförare
+        if (declarer === 'N') {
+            gameBoard.classList.add('north-declarer');
+        } else if (declarer === 'S') {
+            gameBoard.classList.add('south-declarer');
+        } else if (declarer === 'E') {
+            gameBoard.classList.add('east-declarer');
+        } else if (declarer === 'W') {
+            gameBoard.classList.add('west-declarer');
+        }
     }
 }
 

@@ -73,6 +73,9 @@ class BridgeGame {
         this.humanPlayer = 'S'; // Under budgivning är alltid Syd spelaren
         this.dummyRevealed = false; // Återställ flagga
         
+        // Återställ spelarpositioner till standard
+        this.ui.updatePlayerPositions(null);
+        
         this.updateUI();
         this.ui.showBiddingArea(false);
     }
@@ -124,12 +127,17 @@ class BridgeGame {
         
         const player = this.players[this.currentPlayer];
         const partner = this.biddingSystem.getPartner(this.currentPlayer);
-        const bid = this.ai.calculateBid(
+        let bid = this.ai.calculateBid(
             this.currentPlayer,
             player.cards,
             this.biddingSystem.biddingHistory,
             partner
         );
+        
+        // Om budet är ogiltigt, låt roboten pass istället
+        if (bid && !this.biddingSystem.isValidBid(bid)) {
+            bid = 'pass';
+        }
         
         this.makeBid(this.currentPlayer, bid);
     }
@@ -138,6 +146,13 @@ class BridgeGame {
         if (this.gamePhase !== 'bidding') return;
         
         const bidEntry = this.biddingSystem.makeBid(player, bid);
+        
+        // Om budet är ogiltigt, visa meddelande och avbryt
+        if (!bidEntry) {
+            this.ui.showMessage('Ogiltigt bud! Budet måste vara högre än föregående bud.', 'error');
+            return;
+        }
+        
         this.ui.updatePlayerBid(player, bid === 'pass' ? 'Pass' : bid);
         
         // Om budgivningen är klar
@@ -164,6 +179,9 @@ class BridgeGame {
             this.newGame();
             return;
         }
+        
+        // Bestäm declarer: den spelare i paret som först nämnde färgen/trumfen i slutkontraktet
+        this.biddingSystem.declarer = this.biddingSystem.determineDeclarer();
         
         // Sätt declarer, dummy och lead
         this.declarer = this.biddingSystem.declarer;
@@ -498,7 +516,8 @@ class BridgeGame {
             trumpSuit: this.biddingSystem.trumpSuit,
             currentTrick: this.currentTrick,
             tricks: this.scoring.getTricks(),
-            gamePhase: this.gamePhase
+            gamePhase: this.gamePhase,
+            declarer: this.declarer
         };
         
         // Uppdatera alla UI-komponenter

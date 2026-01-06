@@ -11,6 +11,11 @@ class BiddingSystem {
     }
 
     makeBid(player, bid) {
+        // Validera budet innan det accepteras
+        if (!this.isValidBid(bid)) {
+            return null; // Ogiltigt bud, returnera null
+        }
+        
         const bidEntry = { player, bid, position: this.biddingHistory.length };
         this.biddingHistory.push(bidEntry);
         
@@ -19,13 +24,11 @@ class BiddingSystem {
         } else {
             this.passes = 0;
             // Uppdatera kontrakt om budet är högre
-            if (this.isValidBid(bid)) {
-                this.contract = bid;
-                this.declarer = player;
-                const suitMap = { 'C': '♣', 'D': '♦', 'H': '♥', 'S': '♠', 'NT': 'NT' };
-                const suit = bid.slice(1);
-                this.trumpSuit = suitMap[suit] || null;
-            }
+            this.contract = bid;
+            // Declarer sätts när budgivningen är klar, inte här
+            const suitMap = { 'C': '♣', 'D': '♦', 'H': '♥', 'S': '♠', 'NT': 'NT' };
+            const suit = bid.slice(1);
+            this.trumpSuit = suitMap[suit] || null;
         }
         
         return bidEntry;
@@ -34,17 +37,29 @@ class BiddingSystem {
     isValidBid(bid) {
         if (bid === 'pass') return true;
         
-        if (!this.contract) return true; // Första budet är alltid giltigt
+        // Hitta det senaste icke-pass budet i historiken
+        let lastBid = null;
+        for (let i = this.biddingHistory.length - 1; i >= 0; i--) {
+            if (this.biddingHistory[i].bid !== 'pass') {
+                lastBid = this.biddingHistory[i].bid;
+                break;
+            }
+        }
         
-        const currentLevel = parseInt(this.contract[0]);
-        const currentSuit = this.contract.slice(1);
+        // Om det inte finns något tidigare bud, är detta första budet och alltid giltigt
+        if (!lastBid) return true;
+        
+        // Jämför med föregående bud
+        const lastLevel = parseInt(lastBid[0]);
+        const lastSuit = lastBid.slice(1);
         const newLevel = parseInt(bid[0]);
         const newSuit = bid.slice(1);
         
         const suitOrder = { 'C': 1, 'D': 2, 'H': 3, 'S': 4, 'NT': 5 };
         
-        if (newLevel > currentLevel) return true;
-        if (newLevel === currentLevel && suitOrder[newSuit] > suitOrder[currentSuit]) return true;
+        // Bud måste vara högre än föregående bud
+        if (newLevel > lastLevel) return true;
+        if (newLevel === lastLevel && suitOrder[newSuit] > suitOrder[lastSuit]) return true;
         
         return false;
     }
@@ -52,6 +67,54 @@ class BiddingSystem {
     isBiddingComplete() {
         // Om 3 pass i rad efter att minst 4 bud har gjorts
         return this.passes >= 3 && this.biddingHistory.length >= 4;
+    }
+
+    // Hitta den spelare i paret som först nämnde färgen/trumfen i slutkontraktet
+    determineDeclarer() {
+        if (!this.contract) {
+            return null;
+        }
+
+        // Extrahera färgen från slutkontraktet
+        const contractSuit = this.contract.slice(1); // t.ex. "1S" -> "S", "3NT" -> "NT"
+        
+        // Hitta det sista icke-pass budet för att veta vilket par som vann
+        let lastBidPlayer = null;
+        for (let i = this.biddingHistory.length - 1; i >= 0; i--) {
+            if (this.biddingHistory[i].bid !== 'pass') {
+                lastBidPlayer = this.biddingHistory[i].player;
+                break;
+            }
+        }
+        
+        if (!lastBidPlayer) {
+            return null;
+        }
+        
+        // Bestäm vilket par som vann budgivningen
+        const winningPartnership = (lastBidPlayer === 'N' || lastBidPlayer === 'S') 
+            ? ['N', 'S'] 
+            : ['E', 'W'];
+        
+        // Gå igenom budgivningshistoriken från början och hitta den första spelaren 
+        // i vinnande paret som nämnde denna färg/trumf
+        for (let entry of this.biddingHistory) {
+            if (entry.bid === 'pass') {
+                continue;
+            }
+            
+            // Kontrollera om detta bud är i samma färg/trumf som slutkontraktet
+            const bidSuit = entry.bid.slice(1);
+            if (bidSuit === contractSuit) {
+                // Om spelaren är i vinnande paret, är detta declarer
+                if (winningPartnership.includes(entry.player)) {
+                    return entry.player;
+                }
+            }
+        }
+        
+        // Om inget hittades, använd den som gjorde det sista budet som fallback
+        return lastBidPlayer;
     }
 
     getNextPlayer(player) {
@@ -70,6 +133,16 @@ class BiddingSystem {
         const order = ['N', 'E', 'S', 'W'];
         const index = order.indexOf(declarer);
         return order[(index + 1) % 4];
+    }
+
+    // Hjälpmetod för att få det senaste budet (för AI:er att använda)
+    getLastBid() {
+        for (let i = this.biddingHistory.length - 1; i >= 0; i--) {
+            if (this.biddingHistory[i].bid !== 'pass') {
+                return this.biddingHistory[i].bid;
+            }
+        }
+        return null;
     }
 
     // Hitta träkarl (declarers partner)
